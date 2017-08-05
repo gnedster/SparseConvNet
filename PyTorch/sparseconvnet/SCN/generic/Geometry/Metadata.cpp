@@ -44,6 +44,27 @@ extern "C" void scn_D_(setInputSpatialLocation)(void **m,
                 THFloatTensor_data(vec), sizeof(float) * nPlanes);
   }
 }
+
+extern "C" void scn_D_(setInputSpatialLocations)(void **m,
+                                                THFloatTensor *features,
+                                                THLongTensor *locations,
+                                                THFloatTensor *vecs,
+                                                bool overwrite) {
+
+  assert(locations->size[0] == vecs->size[0] &&
+    "Location and vec length must be identical!");
+
+  for(int64_t i=1; i < locations->size[0]; i++) {
+    THLongTensor *location = THLongTensor_newSelect(locations, 0, i);
+    THFloatTensor *vec = THFloatTensor_newSelect(vecs, 0, i);
+
+    scn_D_(setInputSpatialLocation)(m, features, location, vec, overwrite);
+
+    THLongTensor_free(location);
+    THFloatTensor_free(vec);
+  }
+}
+
 extern "C" void
     scn_D_(createMetadataForDenseToSparse)(void **m, THLongTensor *spatialSize_,
                                            THLongTensor *pad_,

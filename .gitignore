@@ -7,3 +7,5 @@ t7/
 build
 __pycache__
 pickle
+*.pyc
+
