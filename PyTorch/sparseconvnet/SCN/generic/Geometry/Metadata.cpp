@@ -54,11 +54,37 @@ extern "C" void scn_D_(setInputSpatialLocations)(void **m,
   assert(locations->size[0] == vecs->size[0] &&
     "Location and vec length must be identical!");
 
-  for(int64_t i=1; i < locations->size[0]; i++) {
+  SCN_INITIALIZE_AND_REFERENCE(Metadata<Dimension>, m)
+  auto &mp = _m.inputSG->mp;
+  auto &nActive = *_m.inputNActive;
+  auto nSamples = locations->size[0];
+  auto isMpEmpty = mp.empty();
+
+  if (isMpEmpty) {
+    auto nPlanes = vecs->size[1];
+
+    THFloatTensor_resize2d(features, nSamples, nPlanes);
+    std::memcpy(THFloatTensor_data(features),
+                THFloatTensor_data(vecs), sizeof(float) * nSamples * nPlanes);
+  }
+
+  for(int64_t i=1; i < nSamples; i++) {
     THLongTensor *location = THLongTensor_newSelect(locations, 0, i);
     THFloatTensor *vec = THFloatTensor_newSelect(vecs, 0, i);
 
-    scn_D_(setInputSpatialLocation)(m, features, location, vec, overwrite);
+    if (isMpEmpty) {
+      auto p = LongTensorToPoint<Dimension>(location);
+
+      // Not convinced we need to reset the iterator
+      if (i == nSamples - 1) {
+        auto iter = mp.find(p);
+        iter = mp.insert(std::make_pair(p, nActive++)).first;
+      } else {
+        mp.insert(std::make_pair(p, nActive++));
+      }
+    } else {
+      scn_D_(setInputSpatialLocation)(m, features, location, vec, overwrite);
+    }
 
     THLongTensor_free(location);
     THFloatTensor_free(vec);
